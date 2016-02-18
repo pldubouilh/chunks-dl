@@ -16,26 +16,27 @@ var Fetcher = function() {
   var timerToken, localData, torrent
   var self = this
 
+  Fetcher.msgBuffer = []
   var waitingToFetch = false
   var connected = 0
-  var DELAYUPDATE = 1
+  var DELAYUPDATE = 5
 
 
   // Init DHT & BT cli
   var dht = new DHT({ bootstrap: true, verify: ed.verify })
   var client = new WebTorrent()
-  console.log("\n  Connecting to the DHT...")
+  log("\n  Connecting to the DHT...")
 
 
   dht.on('ready', function () {
-    console.log("\n  DHT reached.")
+    log("\n  DHT reached.")
     connected = 1
     if(waitingToFetch)
       goGet()
   })
 
   setTimeout(function () {
-    if (!connected) console.log("\n  Can't seems to be able to get to the DHT...")
+    if (!connected) log("\n  Can't seems to be able to get to the DHT...")
   }, 2 * 60 * 1000) //2mn
 
 
@@ -43,7 +44,7 @@ var Fetcher = function() {
   this.on('go', function(k) {
 
     if (k === undefined){
-      console.log('\n  No key provided')
+      log('\n  No key provided')
       return
     }
 
@@ -64,7 +65,7 @@ var Fetcher = function() {
 
     // Make dir and touch new files for non any non existing stuff
     if ( ! fs.existsSync(localData) ){
-      console.log('\n  New address, creating dir')
+      log('\n  New address, creating dir')
       mkdirp(localData)
     }
 
@@ -73,7 +74,7 @@ var Fetcher = function() {
       goGet()
     else{
       waitingToFetch = true
-      console.log("\n  Waiting for a DHT connection...")
+      log("\n  Waiting for a DHT connection...")
     }
   });
 
@@ -81,13 +82,14 @@ var Fetcher = function() {
   function goGet(){
 
     waitingToFetch = false
-    console.log("\n  DHT connected !")
-    console.log('\n  Public key : ' + pub)
-    console.log("\n  Getting " + key)
+    log("\n  DHT connected !")
+    log('\n  Public key : ' + pub)
+    log("\n  Getting " + key)
 
     debugger;
     dht.get(key,getCb)
   }
+
 
   function getCb(err, res){
 
@@ -96,18 +98,18 @@ var Fetcher = function() {
 
     // Return on error
     if (err){
-      console.log('\n  Didn\'t get any reply from the DHT')
-      console.log(err)
+      log('\n  Didn\'t get any reply from the DHT')
+      log(err)
       return
     }
-    console.log('\n  Received from DHT :  ' + res.v.toString('Utf8'))
+    log('\n  Received from DHT :  ' + res.v.toString('Utf8'))
 
     // Try to read key. Write it otherwise
     try {
       var read = jf.readFileSync(localData + '/magnet')
     }
     catch(err){
-      console.log('\n  Initialisation of magnet')
+      log('\n  Initialisation of magnet')
       jf.writeFileSync(localData + '/magnet', res)
       responseHandler(res.v.toString('Utf8'), undefined)
       return
@@ -128,7 +130,7 @@ var Fetcher = function() {
     else if(previousVal ===  val){
 
       if (torrent === undefined){
-        console.log('\n  No new content, seed')
+        log('\n  No new content, seed')
         popTorrent(val, dht)
       }
       else
@@ -137,11 +139,9 @@ var Fetcher = function() {
 
     // > New content !
     else{
-      console.log('\n  New content')
-
+      log('\n  New content')
       if (torrent !== undefined)
-        client.remove(torrent)
-
+        clearTorrent()
       popTorrent(val, dht)
     }
   }
@@ -149,17 +149,17 @@ var Fetcher = function() {
   function popTorrent (magnet, htable){
 
     var torrentPath = localData + '/content/'
-    console.log('\n  Passing over to the torrent engine')
-    console.log('\n  Storing there : ' + torrentPath)
+    log('\n  Passing over to the torrent engine')
+    log('\n  Storing there : ' + torrentPath)
 
     client.add(magnet, {dht : htable, path : torrentPath}, function (t){
       torrent = t
-      console.log('\n  Client downloading ')
+      log('\n  Client downloading ')
 
       setTimeout(elapsed, 5000, t)
 
       function elapsed (t){
-       console.log('  =====' + '\nProgress : ' + t.progress*100 + '\nDownloaded: ' + t.downloaded + '\nSpeed: ' + t.downloadSpeed)
+       log('  =====' + '\nProgress : ' + t.progress*100 + '\nDownloaded: ' + t.downloaded + '\nSpeed: ' + t.downloadSpeed)
        if (t.progress === 1)
          done()
        else
@@ -170,21 +170,21 @@ var Fetcher = function() {
 
   function done (){
 
-    console.log('\n  Download over - now seed !')
+    log('\n  Download over - now seed !')
 
     // Stuff should be in received/localWebsiteName/someFolder/someName.html
     var path = glob.sync(localData + "/content/*/*.html")[0]
     if(!path) return
 
     // Display website
-    console.log('\n  Url :' + path)
+    log('\n  Url :' + path)
     self.emit('over', path);
   }
 
   function help (){
-    console.log('No new content, and we\'re already seeding, let\'s help')
+    console.log('\n  No new content, and we\'re already seeding, let\'s help')
 
-    var read = jf.readFileSync(localData)
+    var read = jf.readFileSync(localData + '/magnet')
     var options = {
       k: Buffer(read.k),
       seq: read.seq,
@@ -194,9 +194,9 @@ var Fetcher = function() {
 
     dht.put(options, function (err, hash) {
       if (err)
-        console.log(err)
+        log(err)
       else
-        console.log('We just gracefully updated the DHT ! How nice...')
+        console.log('\n  We just gracefully updated the DHT ! How nice...')
     })
   }
 
@@ -206,8 +206,13 @@ var Fetcher = function() {
     window.clearTimeout(timerToken)
   }
 
+  function log(message){
+    console.log(message)
+    Fetcher.msgBuffer.push(message)
+  }
+
 } // end class
 
 
 util.inherits(Fetcher, EventEmitter);
-module.exports = Fetcher;
+module.exports = Fetcher
