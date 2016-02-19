@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>chunks</title>
+    <link rel="stylesheet" href="./css/style.css">
+  </head>
+
+  <body>
+
+
+    <!-- Toaster -->
+    <div style="opacity:0;" class="popup smoothTransition"></div>
+
+
+    <script src="./js/jquery.js"></script>
+    <script src="./js/toastie.js"></script>
+    <script src="./js/ripple.js"></script>
+
+    <script type="text/javascript">
+      function requestStatus(){
+        setTimeout(requestStatus, 500);
+
+        var xmlHttp = new XMLHttpRequest();
+
+        xmlHttp.onreadystatechange = function() {
+          if (xmlHttp.readyState == 4 && xmlHttp.status == 200){
+            if(xmlHttp.responseText.length === 0)
+              return
+
+            // Done, refresh
+            if(xmlHttp.responseText == 'done'){
+              location.reload()
+            }
+
+            // Parse what's received and pring
+            var resp = xmlHttp.responseText.split('+')
+            for( var i=0 ; i<resp.length ; i++ )
+              toast(resp[i])
+
+          }
+        }
+        xmlHttp.open("GET", "report", true); // true for asynchronous
+        xmlHttp.send(null);
+      }
+
+      requestStatus()
+    </script>
+  </body>
+</html>
+
+<!-- <script>document.write(process.versions.electron)</script> -->

@@ -17,6 +17,8 @@ var Fetcher = function() {
   var self = this
 
   Fetcher.msgBuffer = []
+  Fetcher.done = false
+
   var waitingToFetch = false
   var connected = 0
   var DELAYUPDATE = 5
@@ -116,11 +118,11 @@ var Fetcher = function() {
     }
 
     jf.writeFileSync(localData + '/magnet', res)
-    responseHandler(res.v.toString('Utf8'), Buffer(read.v).toString('Utf8'))
+    responseHandler(res.v.toString('Utf8'), Buffer(read.v).toString('Utf8'), res)
 
   }
 
-  function responseHandler (val, previousVal){
+  function responseHandler (val, previousVal, res){
 
     // First d/l
     if(previousVal === undefined)
@@ -134,7 +136,7 @@ var Fetcher = function() {
         popTorrent(val, dht)
       }
       else
-        help()
+        help(res)
     }
 
     // > New content !
@@ -152,19 +154,18 @@ var Fetcher = function() {
     log('\n  Passing over to the torrent engine')
     log('\n  Storing there : ' + torrentPath)
 
-    client.add(magnet, {dht : htable, path : torrentPath}, function (t){
+    client.add(magnet, {path : torrentPath}, function (t){
       torrent = t
       log('\n  Client downloading ')
 
-      setTimeout(elapsed, 5000, t)
-
-      function elapsed (t){
-       log('  =====' + '\nProgress : ' + t.progress*100 + '\nDownloaded: ' + t.downloaded + '\nSpeed: ' + t.downloadSpeed)
-       if (t.progress === 1)
+      elapsed()
+      function elapsed (){
+       log('  =====' + '\nProgress : ' + torrent.progress*100 + '\nDownloaded: ' + torrent.downloaded + '\nSpeed: ' + torrent.downloadSpeed)
+       if (torrent.progress === 1)
          done()
        else
          setTimeout(elapsed, 5000)
-     }
+      }
     })
   }
 
@@ -179,22 +180,14 @@ var Fetcher = function() {
     // Display website
     log('\n  Url :' + path)
     self.emit('over', path);
+    Fetcher.done = true
   }
 
-  function help (){
+  function help (res){
     console.log('\n  No new content, and we\'re already seeding, let\'s help')
-
-    var read = jf.readFileSync(localData + '/magnet')
-    var options = {
-      k: Buffer(read.k),
-      seq: read.seq,
-      v: Buffer(read.v),
-      sign: Buffer(read.sig)
-    }
-
-    dht.put(options, function (err, hash) {
+    dht.put(res, function (err, hash) {
       if (err)
-        log(err)
+        console.log(err)
       else
         console.log('\n  We just gracefully updated the DHT ! How nice...')
     })

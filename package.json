@@ -4,13 +4,14 @@
   "description": "chunks network downloader",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "run": "node index.js",
+    "test": "rm -rf received/* && cd backend && make && cd .. && node index.js",
+    "debug": "rm -rf received/* && cd backend && make && cd .. && node-debug index.js"
   },
   "author": "pldubouilh",
   "license": "GPL-2.0",
   "dependencies": {
     "ed25519-supercop": "^1.0.2",
-    "express": "^4.13.4",
     "jsonfile": "^2.2.3",
     "simple-sha1": "^2.0.7",
     "webtorrent": "^0.76.0"

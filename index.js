@@ -30,26 +30,30 @@ function serveFile (response, filename){
 }
 http.createServer(function(request, response) {
 
-  console.log('\n  ------------------------')
-
   var uri = url.parse(request.url).pathname
   var pub = uri.split('/')[1]
 
   // is it a progress report ?
   if (pub === 'report'){
-    console.log('\n  Reporting download...')
 
-    debugger
     response.writeHead(200)
-    response.write(Fetcher.msgBuffer.join('+'))
+
+    if(Fetcher.done){
+       response.write('done')
+       Fetcher.done = false
+    }
+    else
+      response.write(Fetcher.msgBuffer.join('+'))
+
     response.end()
-
     Fetcher.msgBuffer = []
-
+    return
   }
 
+  console.log('\n  ------------------------')
+
   // is it a valid pub key?
-  else if(!pub.match(/[0-9A-Fa-f]{64}/g)){
+  if(!pub.match(/[0-9A-Fa-f]{64}/g)){
     console.log('\n  Serving homepage')
     serveFile(response, __dirname + '/backend/home.html')
   }
